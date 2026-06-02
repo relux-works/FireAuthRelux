@@ -7,7 +7,9 @@ public extension FireAuthRelux.Business {
         case setSignedOut
         case beginRestore
         case beginSignIn
+        @available(*, deprecated, message: "Use signedInWithKind(_:_:); it carries SessionKind so State can expose isAnonymous.")
         case signedIn(User)
+        case signedInWithKind(User, SessionKind)
         case upgraded(User, AnonymousUpgradeMode)
         case beginRefresh
         case refreshed(User)

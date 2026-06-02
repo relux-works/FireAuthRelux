@@ -74,7 +74,7 @@ private extension FireAuthRelux.Business.Flow {
         _ = await actions { FireAuthRelux.Business.Action.beginSignIn }
         do {
             let session = try await operation()
-            return await actions { FireAuthRelux.Business.Action.signedIn(session.user) }
+            return await actions { FireAuthRelux.Business.Action.signedInWithKind(session.user, session.kind) }
         } catch {
             return await fail(error)
         }
@@ -96,7 +96,7 @@ private extension FireAuthRelux.Business.Flow {
         _ = await actions { FireAuthRelux.Business.Action.beginRestore }
         do {
             if let session = try await service.restoreSession() {
-                return await actions { FireAuthRelux.Business.Action.signedIn(session.user) }
+                return await actions { FireAuthRelux.Business.Action.signedInWithKind(session.user, session.kind) }
             }
             return await actions { FireAuthRelux.Business.Action.setSignedOut }
         } catch {

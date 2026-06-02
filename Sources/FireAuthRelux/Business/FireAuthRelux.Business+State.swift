@@ -14,6 +14,13 @@ public extension FireAuthRelux.Business {
         /// How the most recent anonymous upgrade resolved, if any. Lets the UI detect an account
         /// switch (`signedIntoExistingAccount`) vs an in-place link. Cleared on the next auth flow.
         public private(set) var lastUpgradeMode: AnonymousUpgradeMode?
+        /// Whether the current session is anonymous or an authenticated account; `nil` when there
+        /// is no session (signed out / unconfigured / not yet established). Lets app UI gate flows
+        /// that require a real account (e.g. purchases) without inspecting the user model.
+        public private(set) var sessionKind: SessionKind?
+
+        /// Convenience: there is a session and it is anonymous.
+        public var isAnonymous: Bool { sessionKind == .anonymous }
 
         public init(status: Status = .signedOut) {
             self.status = status
@@ -22,6 +29,8 @@ public extension FireAuthRelux.Business {
             self.errorMessage = nil
             self.emailVerified = nil
             self.lastUpgradeMode = nil
+            // Kind is not inferable from `status` alone; the live flow sets it via `.signedIn`.
+            self.sessionKind = nil
         }
 
         public func reduce(with action: any Relux.Action) async {
@@ -45,6 +54,7 @@ private extension FireAuthRelux.Business.State {
             errorMessage = nil
             emailVerified = nil
             lastUpgradeMode = nil
+            sessionKind = nil
 
         case .setSignedOut:
             status = .signedOut
@@ -53,6 +63,7 @@ private extension FireAuthRelux.Business.State {
             errorMessage = nil
             emailVerified = nil
             lastUpgradeMode = nil
+            sessionKind = nil
 
         case .beginRestore:
             status = .restoring
@@ -67,10 +78,20 @@ private extension FireAuthRelux.Business.State {
             lastUpgradeMode = nil
 
         case let .signedIn(user):
+            // Deprecated, source-compat path: no SessionKind carried, so preserve pre-1.1.0
+            // behavior and leave `sessionKind` unset (isAnonymous stays false). New callers use
+            // `.signedInWithKind` to populate the kind.
             status = .signedIn(user)
             self.user = user
             isBusy = false
             errorMessage = nil
+
+        case let .signedInWithKind(user, kind):
+            status = .signedIn(user)
+            self.user = user
+            isBusy = false
+            errorMessage = nil
+            sessionKind = kind
 
         case let .upgraded(user, mode):
             status = .signedIn(user)
@@ -78,6 +99,8 @@ private extension FireAuthRelux.Business.State {
             isBusy = false
             errorMessage = nil
             lastUpgradeMode = mode
+            // An anonymous upgrade always resolves to an authenticated account.
+            sessionKind = .authenticated
 
         case .beginRefresh:
             if let user {
@@ -112,6 +135,7 @@ private extension FireAuthRelux.Business.State {
             errorMessage = nil
             emailVerified = nil
             lastUpgradeMode = nil
+            sessionKind = nil
         }
     }
 }

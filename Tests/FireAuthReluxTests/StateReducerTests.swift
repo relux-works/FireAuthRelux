@@ -19,11 +19,38 @@ struct StateReducerTests {
         let state = FireAuthRelux.Business.State(status: .signingIn)
         let user = FireAuthProvider.User(id: "u", email: "a@b.com", displayName: "A")
 
-        await state.reduce(with: FireAuthRelux.Business.Action.signedIn(user))
+        await state.reduce(with: FireAuthRelux.Business.Action.signedInWithKind(user, .authenticated))
 
         #expect(state.user == user)
         #expect(state.status == .signedIn(user))
         #expect(!state.isBusy)
+        #expect(state.sessionKind == .authenticated)
+        #expect(!state.isAnonymous)
+    }
+
+    @Test
+    func signedInAnonymouslyMarksSessionAnonymous() async {
+        let state = FireAuthRelux.Business.State(status: .signingIn)
+        let user = FireAuthProvider.User(id: "anon", displayName: "Guest")
+
+        await state.reduce(with: FireAuthRelux.Business.Action.signedInWithKind(user, .anonymous))
+
+        #expect(state.sessionKind == .anonymous)
+        #expect(state.isAnonymous)
+    }
+
+    @Test
+    func refreshPreservesSessionKind() async {
+        let state = FireAuthRelux.Business.State(status: .signingIn)
+        let user = FireAuthProvider.User(id: "anon", displayName: "Guest")
+        await state.reduce(with: FireAuthRelux.Business.Action.signedInWithKind(user, .anonymous))
+
+        await state.reduce(with: FireAuthRelux.Business.Action.beginRefresh)
+        await state.reduce(with: FireAuthRelux.Business.Action.refreshed(user))
+
+        // Refresh keeps the user signed in without changing the session kind.
+        #expect(state.sessionKind == .anonymous)
+        #expect(state.isAnonymous)
     }
 
     @Test
@@ -38,10 +65,13 @@ struct StateReducerTests {
     @Test
     func setSignedOutClearsUser() async {
         let user = FireAuthProvider.User(id: "u", displayName: "A")
-        let state = FireAuthRelux.Business.State(status: .signedIn(user))
+        let state = FireAuthRelux.Business.State(status: .signingIn)
+        await state.reduce(with: FireAuthRelux.Business.Action.signedInWithKind(user, .anonymous))
         await state.reduce(with: FireAuthRelux.Business.Action.setSignedOut)
         #expect(state.status == .signedOut)
         #expect(state.user == nil)
+        #expect(state.sessionKind == nil)
+        #expect(!state.isAnonymous)
     }
 
     @Test
@@ -63,5 +93,7 @@ struct StateReducerTests {
         #expect(state.status == .signedIn(user))
         #expect(state.user == user)
         #expect(state.lastUpgradeMode == mode)
+        #expect(state.sessionKind == .authenticated)
+        #expect(!state.isAnonymous)
     }
 }
