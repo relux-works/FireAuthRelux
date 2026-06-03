@@ -12,7 +12,8 @@ abstraction. The app reads `State`, dispatches `Effect`, and renders its own aut
 
 It imports **no** SwiftUI, no Keychain, no HTTP client, and contains no backend/profile sync. Social
 credential acquisition (OAuth + UI) stays in the app via `FireAuthKitSocial`; the app produces a
-`FirebaseIDPCredential` and dispatches `signInWithCredential` / `upgradeAnonymousWithCredential` /
+`FirebaseIDPCredential` and dispatches `signInWithCredential` /
+`upgradeAnonymousOrSignInExistingWithCredential` /
 `linkCurrentUserWithCredential`.
 
 ## Auth semantics (three distinct families)
@@ -22,16 +23,20 @@ These are deliberately separated so the public API cannot silently switch accoun
 | Family | Meaning | On conflict (provider/email already taken) |
 |---|---|---|
 | `signIn*` | Authenticate as that identity | n/a |
-| `upgradeAnonymous*` | **Only** valid on an anonymous session; links in place | Falls back to signing into the existing account |
+| `upgradeAnonymousOrSignInExisting*` | **Only** valid on an anonymous session; links in place | Falls back to signing into the existing account |
 | `linkCurrentUser*` | Strict link onto the current user | **Throws** — no fallback (app shows conflict/merge) |
 
-`upgradeAnonymous*` returns an `AnonymousUpgradeOutcome`:
+`upgradeAnonymousOrSignInExisting*` returns an `AnonymousUpgradeOutcome`:
 
 - `.linkedAnonymousAccount` — same Firebase uid; guest data still belongs to this user.
 - `.signedIntoExistingAccount(previousAnonymousUserID:)` — an account switch; the app decides what
   to do with the previous guest's local state.
 
 This is also surfaced reactively via `State.lastUpgradeMode`.
+
+The older `upgradeAnonymous*` effects and concrete `AuthService` methods are compatibility aliases
+for `upgradeAnonymousOrSignInExisting*`. Prefer `linkCurrentUser*` unless the app has an explicit
+merge flow for account switches.
 
 ## State
 
@@ -50,7 +55,8 @@ This is also surfaced reactively via `State.lastUpgradeMode`.
 ## Effects
 
 `restoreSession`, `signInAnonymously`, `createEmailUser`, `signInEmail`, `signInWithCredential`,
-`upgradeAnonymousWithEmail`, `upgradeAnonymousWithCredential`, `linkCurrentUserWithEmail`,
+`upgradeAnonymousOrSignInExistingWithEmail`,
+`upgradeAnonymousOrSignInExistingWithCredential`, `linkCurrentUserWithEmail`,
 `linkCurrentUserWithCredential`, `refreshIfNeeded`, `forceRefresh`, `sendEmailVerification`,
 `checkEmailVerification`, `signOut`, `resetLocalAuthState`.
 

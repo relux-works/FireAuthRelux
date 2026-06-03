@@ -28,7 +28,7 @@ struct EffectRedactionTests {
     @Test
     func upgradeAndLinkEmailRedactPassword() {
         let effects: [FireAuthRelux.Business.Effect] = [
-            .upgradeAnonymousWithEmail(email: "a@b.com", password: "topSecret"),
+            .upgradeAnonymousOrSignInExistingWithEmail(email: "a@b.com", password: "topSecret"),
             .linkCurrentUserWithEmail(email: "a@b.com", password: "topSecret"),
         ]
         for effect in effects {
@@ -41,7 +41,7 @@ struct EffectRedactionTests {
     func upgradeAndLinkCredentialRedacted() {
         let credential = FirebaseIDPCredential.facebook(accessToken: "FB_SECRET")
         let effects: [FireAuthRelux.Business.Effect] = [
-            .upgradeAnonymousWithCredential(credential),
+            .upgradeAnonymousOrSignInExistingWithCredential(credential),
             .linkCurrentUserWithCredential(credential),
         ]
         for effect in effects {

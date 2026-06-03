@@ -64,14 +64,17 @@ struct AuthServiceTests {
     }
 
     @Test
-    func upgradeAnonymousWithEmailLinksInPlace() async throws {
+    func upgradeAnonymousOrSignInExistingWithEmailLinksInPlace() async throws {
         let (service, transport) = makeService([
             .init(json: Fixtures.anonymous),
             .init(json: Fixtures.linkedEmail),
         ])
 
         _ = try await service.signInAnonymously()
-        let outcome = try await service.upgradeAnonymousWithEmail(email: "a@b.com", password: "Password1!")
+        let outcome = try await service.upgradeAnonymousOrSignInExistingWithEmail(
+            email: "a@b.com",
+            password: "Password1!"
+        )
 
         #expect(outcome.mode == .linkedAnonymousAccount)
         #expect(outcome.session.email == "a@b.com")
@@ -136,7 +139,7 @@ struct AuthServiceTests {
     }
 
     @Test
-    func upgradeAnonymousWithCredentialFallsBackToExistingAccount() async throws {
+    func upgradeAnonymousOrSignInExistingWithCredentialFallsBackToExistingAccount() async throws {
         let (service, transport) = makeService([
             .init(json: Fixtures.anonymous),
             .init(json: Fixtures.federatedConflict),
@@ -144,7 +147,7 @@ struct AuthServiceTests {
         ])
 
         _ = try await service.signInAnonymously()
-        let outcome = try await service.upgradeAnonymousWithCredential(.google(accessToken: "tok"))
+        let outcome = try await service.upgradeAnonymousOrSignInExistingWithCredential(.google(accessToken: "tok"))
 
         #expect(outcome.session.localId == "userB")
         #expect(outcome.mode == .signedIntoExistingAccount(previousAnonymousUserID: "anon"))
@@ -159,7 +162,7 @@ struct AuthServiceTests {
 
         var isRequiresAnonymous = false
         do {
-            _ = try await service.upgradeAnonymousWithCredential(.facebook(accessToken: "tok2"))
+            _ = try await service.upgradeAnonymousOrSignInExistingWithCredential(.facebook(accessToken: "tok2"))
         } catch FireAuthRelux.Business.AuthService.ServiceError.requiresAnonymousSession {
             isRequiresAnonymous = true
         } catch {}

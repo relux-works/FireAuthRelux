@@ -10,11 +10,11 @@ public extension FireAuthRelux.Business {
 
 public extension FireAuthRelux.Business {
     /// Auth orchestration contract: calls `FirebaseAuthClient`, persists via `SessionStore`,
-    /// owns refresh policy, and performs anonymous -> real upgrades.
+    /// owns refresh policy, and performs anonymous -> real attachment/sign-in flows.
     ///
     /// Provider/email attachment is split by intent so the public API can't silently switch
-    /// accounts: plain `signIn*`, anonymous-only `upgradeAnonymous*` (with existing-account
-    /// fallback), and strict `linkCurrentUser*` (no fallback).
+    /// accounts: plain `signIn*`, anonymous-only `upgradeAnonymousOrSignInExisting*`
+    /// (with existing-account fallback), and strict `linkCurrentUser*` (no fallback).
     protocol AuthServicing: Actor, TokenProviding {
         var currentSession: FireAuthRelux.Business.StoredSession? { get async }
 
@@ -26,6 +26,8 @@ public extension FireAuthRelux.Business {
 
         func upgradeAnonymousWithEmail(email: String, password: String) async throws -> FireAuthRelux.Business.AnonymousUpgradeOutcome
         func upgradeAnonymousWithCredential(_ credential: FirebaseIDPCredential) async throws -> FireAuthRelux.Business.AnonymousUpgradeOutcome
+        func upgradeAnonymousOrSignInExistingWithEmail(email: String, password: String) async throws -> FireAuthRelux.Business.AnonymousUpgradeOutcome
+        func upgradeAnonymousOrSignInExistingWithCredential(_ credential: FirebaseIDPCredential) async throws -> FireAuthRelux.Business.AnonymousUpgradeOutcome
 
         func linkCurrentUserWithEmail(email: String, password: String) async throws -> FireAuthRelux.Business.StoredSession
         func linkCurrentUserWithCredential(_ credential: FirebaseIDPCredential) async throws -> FireAuthRelux.Business.StoredSession
@@ -39,12 +41,27 @@ public extension FireAuthRelux.Business {
     }
 }
 
+public extension FireAuthRelux.Business.AuthServicing {
+    func upgradeAnonymousOrSignInExistingWithEmail(
+        email: String,
+        password: String
+    ) async throws -> FireAuthRelux.Business.AnonymousUpgradeOutcome {
+        try await upgradeAnonymousWithEmail(email: email, password: password)
+    }
+
+    func upgradeAnonymousOrSignInExistingWithCredential(
+        _ credential: FirebaseIDPCredential
+    ) async throws -> FireAuthRelux.Business.AnonymousUpgradeOutcome {
+        try await upgradeAnonymousWithCredential(credential)
+    }
+}
+
 public extension FireAuthRelux.Business {
     /// Concrete auth service over `FireAuthKit`, with injectable session storage and clock.
     actor AuthService: AuthServicing {
         public enum ServiceError: Error, Sendable, Equatable {
             case noSession
-            /// `upgradeAnonymous*` was called while the current session is not anonymous.
+            /// Anonymous-only fallback upgrade was called while the current session is not anonymous.
             case requiresAnonymousSession
         }
 
@@ -123,12 +140,37 @@ public extension FireAuthRelux.Business {
 
         // MARK: - Anonymous upgrade (may fall back to an existing account)
 
+        @available(
+            *,
+            deprecated,
+            renamed: "upgradeAnonymousOrSignInExistingWithEmail(email:password:)",
+            message: "This method may switch Firebase uid. Use linkCurrentUserWithEmail unless your app has an explicit merge flow."
+        )
         public func upgradeAnonymousWithEmail(
             email: String,
             password: String
         ) async throws -> FireAuthRelux.Business.AnonymousUpgradeOutcome {
+            try await upgradeAnonymousOrSignInExistingWithEmail(email: email, password: password)
+        }
+
+        @available(
+            *,
+            deprecated,
+            renamed: "upgradeAnonymousOrSignInExistingWithCredential(_:)",
+            message: "This method may switch Firebase uid. Use linkCurrentUserWithCredential unless your app has an explicit merge flow."
+        )
+        public func upgradeAnonymousWithCredential(
+            _ credential: FirebaseIDPCredential
+        ) async throws -> FireAuthRelux.Business.AnonymousUpgradeOutcome {
+            try await upgradeAnonymousOrSignInExistingWithCredential(credential)
+        }
+
+        public func upgradeAnonymousOrSignInExistingWithEmail(
+            email: String,
+            password: String
+        ) async throws -> FireAuthRelux.Business.AnonymousUpgradeOutcome {
             let current = try await requireAnonymousSession()
-            let response = try await client.signInWithEmailFromAnonymous(
+            let response = try await client.linkAnonymousOrSignInExistingWithEmail(
                 anonymousIdToken: current.idToken,
                 email: email,
                 password: password
@@ -136,11 +178,11 @@ public extension FireAuthRelux.Business {
             return try await finishUpgrade(response, previousAnonymous: current)
         }
 
-        public func upgradeAnonymousWithCredential(
+        public func upgradeAnonymousOrSignInExistingWithCredential(
             _ credential: FirebaseIDPCredential
         ) async throws -> FireAuthRelux.Business.AnonymousUpgradeOutcome {
             let current = try await requireAnonymousSession()
-            let response = try await client.signInWithIdpFromAnonymous(
+            let response = try await client.linkAnonymousOrSignInExistingWithIdp(
                 anonymousIdToken: current.idToken,
                 credential: credential
             )

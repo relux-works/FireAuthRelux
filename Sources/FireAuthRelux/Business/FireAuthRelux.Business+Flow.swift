@@ -43,9 +43,13 @@ public extension FireAuthRelux.Business {
             case let .signInWithCredential(credential):
                 return await signIn { try await self.service.signIn(with: credential) }
             case let .upgradeAnonymousWithEmail(email, password):
-                return await upgrade { try await self.service.upgradeAnonymousWithEmail(email: email, password: password) }
+                return await upgrade { try await self.service.upgradeAnonymousOrSignInExistingWithEmail(email: email, password: password) }
             case let .upgradeAnonymousWithCredential(credential):
-                return await upgrade { try await self.service.upgradeAnonymousWithCredential(credential) }
+                return await upgrade { try await self.service.upgradeAnonymousOrSignInExistingWithCredential(credential) }
+            case let .upgradeAnonymousOrSignInExistingWithEmail(email, password):
+                return await upgrade { try await self.service.upgradeAnonymousOrSignInExistingWithEmail(email: email, password: password) }
+            case let .upgradeAnonymousOrSignInExistingWithCredential(credential):
+                return await upgrade { try await self.service.upgradeAnonymousOrSignInExistingWithCredential(credential) }
             case let .linkCurrentUserWithEmail(email, password):
                 return await signIn { try await self.service.linkCurrentUserWithEmail(email: email, password: password) }
             case let .linkCurrentUserWithCredential(credential):

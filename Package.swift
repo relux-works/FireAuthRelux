@@ -19,7 +19,7 @@ let package = Package(
         .library(name: "FireAuthRelux", targets: ["FireAuthRelux"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/relux-works/FireAuthKit.git", .upToNextMajor(from: "1.0.0")),
+        .package(url: "https://github.com/relux-works/FireAuthKit.git", .upToNextMajor(from: "1.1.0")),
         .package(url: "https://github.com/relux-works/swift-relux.git", .upToNextMajor(from: "9.0.1")),
     ],
     targets: [

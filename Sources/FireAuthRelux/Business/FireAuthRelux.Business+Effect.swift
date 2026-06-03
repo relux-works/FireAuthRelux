@@ -6,9 +6,9 @@ public extension FireAuthRelux.Business {
     ///
     /// Three distinct semantics for attaching a provider/email — do not conflate them:
     /// - `signIn*`: authenticate as that identity (no current session needed).
-    /// - `upgradeAnonymous*`: only valid on an anonymous session; links in place, and if the
-    ///   provider/email already belongs to another user, falls back to signing into that account
-    ///   (see `AnonymousUpgradeMode`).
+    /// - `upgradeAnonymousOrSignInExisting*`: only valid on an anonymous session; links in place,
+    ///   and if the provider/email already belongs to another user, falls back to signing into
+    ///   that account (see `AnonymousUpgradeMode`).
     /// - `linkCurrentUser*`: strict link onto the current user; NEVER falls back. If the
     ///   provider/email is already taken, it fails so the app can show a conflict/merge flow
     ///   instead of silently switching accounts.
@@ -18,8 +18,22 @@ public extension FireAuthRelux.Business {
         case createEmailUser(email: String, password: String)
         case signInEmail(email: String, password: String)
         case signInWithCredential(FirebaseIDPCredential)
+        @available(
+            *,
+            deprecated,
+            renamed: "upgradeAnonymousOrSignInExistingWithEmail(email:password:)",
+            message: "This effect may switch Firebase uid. Use linkCurrentUserWithEmail unless your app has an explicit merge flow."
+        )
         case upgradeAnonymousWithEmail(email: String, password: String)
+        @available(
+            *,
+            deprecated,
+            renamed: "upgradeAnonymousOrSignInExistingWithCredential(_:)",
+            message: "This effect may switch Firebase uid. Use linkCurrentUserWithCredential unless your app has an explicit merge flow."
+        )
         case upgradeAnonymousWithCredential(FirebaseIDPCredential)
+        case upgradeAnonymousOrSignInExistingWithEmail(email: String, password: String)
+        case upgradeAnonymousOrSignInExistingWithCredential(FirebaseIDPCredential)
         case linkCurrentUserWithEmail(email: String, password: String)
         case linkCurrentUserWithCredential(FirebaseIDPCredential)
         case refreshIfNeeded
@@ -49,11 +63,13 @@ public extension FireAuthRelux.Business.Effect {
         case let .createEmailUser(email, _),
              let .signInEmail(email, _),
              let .upgradeAnonymousWithEmail(email, _),
+             let .upgradeAnonymousOrSignInExistingWithEmail(email, _),
              let .linkCurrentUserWithEmail(email, _):
             return ["email: \(email)", "password: <redacted>"]
 
         case let .signInWithCredential(credential),
              let .upgradeAnonymousWithCredential(credential),
+             let .upgradeAnonymousOrSignInExistingWithCredential(credential),
              let .linkCurrentUserWithCredential(credential):
             return ["providerId: \(credential.providerId)", "credential: <redacted>"]
 
