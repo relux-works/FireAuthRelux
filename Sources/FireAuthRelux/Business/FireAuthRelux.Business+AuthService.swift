@@ -18,6 +18,10 @@ public extension FireAuthRelux.Business {
     protocol AuthServicing: Actor, TokenProviding {
         var currentSession: FireAuthRelux.Business.StoredSession? { get async }
 
+        /// Loads a persisted session into memory without performing network refresh.
+        ///
+        /// Callers that surface observable auth state should publish this identity first, then
+        /// call `refreshIfNeeded()`. That keeps the uid visible during transient refresh failures.
         func restoreSession() async throws -> FireAuthRelux.Business.StoredSession?
         func signInAnonymously() async throws -> FireAuthRelux.Business.StoredSession
         func createEmailUser(email: String, password: String) async throws -> FireAuthRelux.Business.StoredSession
@@ -112,9 +116,6 @@ public extension FireAuthRelux.Business {
                 return nil
             }
             session = stored
-            if isExpiring(stored) {
-                return try await forceRefresh()
-            }
             return stored
         }
 

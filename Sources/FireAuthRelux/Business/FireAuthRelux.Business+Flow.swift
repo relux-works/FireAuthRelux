@@ -100,7 +100,8 @@ private extension FireAuthRelux.Business.Flow {
         _ = await actions { FireAuthRelux.Business.Action.beginRestore }
         do {
             if let session = try await service.restoreSession() {
-                return await actions { FireAuthRelux.Business.Action.signedInWithKind(session.user, session.kind) }
+                _ = await actions { FireAuthRelux.Business.Action.signedInWithKind(session.user, session.kind) }
+                return await refreshIfNeeded()
             }
             return await actions { FireAuthRelux.Business.Action.setSignedOut }
         } catch {

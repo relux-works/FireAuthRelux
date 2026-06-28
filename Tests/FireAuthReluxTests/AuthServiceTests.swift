@@ -121,6 +121,21 @@ struct AuthServiceTests {
     }
 
     @Test
+    func restoreSessionReturnsExpiredStoredSessionWithoutRefresh() async throws {
+        let store = FireAuthRelux.InMemorySessionStore(
+            session: storedSession(expiresAt: Date(timeIntervalSinceNow: -60))
+        )
+        let (service, transport) = makeService([.init(json: Fixtures.refreshed)], store: store)
+
+        let restored = try await service.restoreSession()
+
+        #expect(restored?.localId == "u")
+        #expect(restored?.idToken == "id")
+        let requestCount = await transport.requests.count
+        #expect(requestCount == 0)
+    }
+
+    @Test
     func signOutPropagatesStoreClearErrorAndKeepsSession() async throws {
         let store = ThrowingSessionStore(throwOnClear: true)
         let (service, _) = makeService([.init(json: Fixtures.anonymous)], store: store)
